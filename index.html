@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Hobbit Set Tracker</title>
+<link rel="stylesheet" href="styles.css?v=4">
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <span class="brand-mark">◈</span>
+      <div class="brand-text">
+        <h1 id="setName">The Hobbit</h1>
+        <span class="brand-sub" id="setSub">HOB</span>
+      </div>
+    </div>
+    <div class="progress-block">
+      <div class="progress-stats">
+        <span id="ownedCount">0</span> / <span id="totalCount">0</span>
+        <span class="progress-pct" id="pctLabel">0%</span>
+      </div>
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="finish-line">
+        <span class="finish-stat nf"><span class="fi">✓</span> Non-foil <strong id="nfCount">0</strong></span>
+        <span class="finish-stat foil"><span class="fi">✦</span> Foil <strong id="foilCount">0</strong></span>
+      </div>
+      <div class="value-line">Collection value: <strong id="ownedValue">$0.00</strong> <span class="muted">of <span id="totalValue">$0.00</span></span></div>
+    </div>
+  </div>
+</header>
+
+<div class="controls">
+  <div class="controls-inner">
+    <input type="search" id="search" placeholder="Search cards by name, number, or type…" autocomplete="off">
+    <div class="filter-group" id="rarityFilters">
+      <button class="chip active" data-rarity="all">All</button>
+      <button class="chip r-common" data-rarity="common">Common</button>
+      <button class="chip r-uncommon" data-rarity="uncommon">Uncommon</button>
+      <button class="chip r-rare" data-rarity="rare">Rare</button>
+      <button class="chip r-mythic" data-rarity="mythic">Mythic</button>
+    </div>
+    <div class="filter-group" id="ownedFilters">
+      <button class="chip active" data-owned="all">Show all</button>
+      <button class="chip" data-owned="owned">In collection</button>
+      <button class="chip" data-owned="foil">Foils</button>
+      <button class="chip" data-owned="missing">Missing</button>
+    </div>
+    <div class="spacer"></div>
+    <label class="sort-label">Sort
+      <select id="sort">
+        <option value="num">Card number</option>
+        <option value="name">Name</option>
+        <option value="rarity">Rarity</option>
+        <option value="value">Value (high→low)</option>
+      </select>
+    </label>
+    <button class="ghost-btn" id="resetBtn" title="Clear your collection">Reset</button>
+  </div>
+  <div class="controls-inner subrow">
+    <span class="result-count" id="resultCount"></span>
+    <span class="hint">Click a card to toggle owned · your collection is saved in this browser</span>
+  </div>
+</div>
+
+<main id="grid" class="grid" aria-live="polite"></main>
+<div id="empty" class="empty-state" hidden>No cards match these filters.</div>
+
+<div id="lightbox" class="lightbox" hidden>
+  <div class="lightbox-inner">
+    <img id="lightboxImg" alt="">
+    <div class="lightbox-info">
+      <h2 id="lbName"></h2>
+      <p id="lbMeta"></p>
+      <p id="lbPrice"></p>
+      <div class="lb-finishes">
+        <button id="lbNonfoil" class="own-btn finish-btn nf"></button>
+        <button id="lbFoil" class="own-btn finish-btn foil"></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="cards-data.js?v=hob-p"></script>
+<script src="app.js?v=hob3"></script>
+</body>
+</html>
