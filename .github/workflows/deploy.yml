@@ -1,0 +1,33 @@
+name: Deploy to Cloudflare Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Assemble static site (dist/)
+        run: |
+          mkdir -p dist
+          cp index.html set.html profile.html u.html \
+             styles.css \
+             app.js sets-app.js sets-data.js mtg.js profile.js u.js \
+             config.js \
+             dist/
+          ls -la dist
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --project-name=mtg-tracker --branch=main
