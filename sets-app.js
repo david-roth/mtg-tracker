@@ -11,7 +11,15 @@
   const sortEl = document.getElementById("sort");
   const resultCount = document.getElementById("resultCount");
 
-  const state = { search: "", type: "all", started: "all", sort: "new" };
+  const state = { search: "", type: "main", started: "all", sort: "new" };
+
+  // types that are auxiliary products rather than collectible "sets" — hidden
+  // from the default "Main sets" view (still reachable via the type filter)
+  const EXTRA_TYPES = new Set([
+    "token", "promo", "memorabilia", "minigame", "treasure_chest",
+    "vanguard", "alchemy",
+  ]);
+  const isMain = (s) => !EXTRA_TYPES.has(s.type);
 
   // ---- owned counts per set from localStorage ----
   // key "mtg-tracker:<code>" -> { id: {n,f} }  ; we count entries (cards owned in any finish)
@@ -44,6 +52,19 @@
   (function buildTypes() {
     const counts = {};
     SETS.forEach((s) => (counts[s.type] = (counts[s.type] || 0) + 1));
+    const mainCount = SETS.filter(isMain).length;
+
+    // "Main sets" (default) and "All types" come first
+    typeEl.innerHTML = "";
+    const optMain = document.createElement("option");
+    optMain.value = "main";
+    optMain.textContent = "Main sets (" + mainCount + ")";
+    typeEl.appendChild(optMain);
+    const optAll = document.createElement("option");
+    optAll.value = "all";
+    optAll.textContent = "All types (" + SETS.length + ")";
+    typeEl.appendChild(optAll);
+
     Object.keys(counts)
       .sort((a, b) => counts[b] - counts[a])
       .forEach((t) => {
@@ -52,6 +73,7 @@
         o.textContent = prettyType(t) + " (" + counts[t] + ")";
         typeEl.appendChild(o);
       });
+    typeEl.value = "main";
   })();
 
   // ---- header summary ----
@@ -66,7 +88,8 @@
 
   function currentList() {
     let list = SETS.filter((s) => {
-      if (state.type !== "all" && s.type !== state.type) return false;
+      if (state.type === "main") { if (!isMain(s)) return false; }
+      else if (state.type !== "all" && s.type !== state.type) return false;
       if (state.started === "started" && ownedCount(s.code) === 0) return false;
       if (state.search) {
         const hay = (s.name + " " + s.code).toLowerCase();
