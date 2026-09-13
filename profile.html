@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Profile — MTG Set Tracker</title>
+<link rel="stylesheet" href="styles.css?v=7">
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <a class="back-link" href="index.html" title="Back to all sets">←</a>
+      <div class="brand-text">
+        <h1>My Profile</h1>
+        <span class="brand-sub">Account &amp; collection</span>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div id="account" class="account-bar"></div>
+    </div>
+  </div>
+</header>
+
+<main class="page">
+  <div id="signedOut" class="status-state error" hidden>
+    <div class="status-title">You're not signed in</div>
+    <div class="status-detail">Sign in to manage your profile and sync your collection.</div>
+    <button class="acct-btn signin" id="signInPrompt">Sign in</button>
+  </div>
+
+  <div id="localMode" class="status-state" hidden>
+    Accounts aren't configured yet, so there's no online profile — your collection is saved
+    in this browser. See <a href="index.html">the set list</a> to keep tracking, or set up
+    Supabase (SETUP.md) to enable accounts.
+  </div>
+
+  <div id="signedIn" hidden>
+    <!-- Profile -->
+    <section class="card-panel">
+      <h2>Profile</h2>
+      <form id="profileForm" class="stack-form">
+        <label>Username <span class="muted">(your public URL: u.html?user=<span id="uPreview"></span>)</span>
+          <input name="username" autocomplete="off" spellcheck="false">
+          <span class="field-msg" id="usernameMsg"></span>
+        </label>
+        <label>Display name<input name="display_name" autocomplete="off"></label>
+        <label>Avatar image URL<input name="avatar_url" autocomplete="off" placeholder="https://…"></label>
+        <label>Bio<textarea name="bio" rows="3" maxlength="300"></textarea></label>
+        <label class="row-check"><input type="checkbox" name="is_public"> Public profile (others can view your collection)</label>
+        <div class="form-actions">
+          <button type="submit" class="auth-submit" id="saveProfile">Save profile</button>
+          <span class="field-msg" id="profileMsg"></span>
+        </div>
+      </form>
+    </section>
+
+    <!-- Collection overview -->
+    <section class="card-panel">
+      <h2>Your collection</h2>
+      <div id="collectionOverview" class="overview-list">Loading…</div>
+    </section>
+
+    <!-- Account -->
+    <section class="card-panel" id="account-settings">
+      <h2>Account settings</h2>
+      <div class="acct-row">
+        <span>Email: <strong id="acctEmail"></strong></span>
+      </div>
+      <form id="emailForm" class="inline-form">
+        <input name="email" type="email" placeholder="New email">
+        <button class="ghost-btn">Change email</button>
+        <span class="field-msg" id="emailMsg"></span>
+      </form>
+      <form id="passwordForm" class="inline-form">
+        <input name="password" type="password" placeholder="New password (min 6)" minlength="6" autocomplete="new-password">
+        <button class="ghost-btn">Change password</button>
+        <span class="field-msg" id="passwordMsg"></span>
+      </form>
+      <div class="acct-row">
+        <button class="ghost-btn" id="exportBtn">Export my data (JSON)</button>
+        <button class="ghost-btn danger" id="deleteBtn">Delete account</button>
+        <span class="field-msg" id="dangerMsg"></span>
+      </div>
+    </section>
+  </div>
+</main>
+
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="mtg.js?v=1"></script>
+<script src="sets-data.js?v=1"></script>
+<script src="profile.js?v=1"></script>
+</body>
+</html>

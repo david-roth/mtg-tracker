@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Set Tracker</title>
-<link rel="stylesheet" href="styles.css?v=5">
+<link rel="stylesheet" href="styles.css?v=7">
 </head>
 <body>
 <header class="topbar">
@@ -17,6 +17,8 @@
         <span class="brand-sub" id="setSub"></span>
       </div>
     </div>
+    <div class="topbar-right">
+    <div id="account" class="account-bar"></div>
     <div class="progress-block">
       <div class="progress-stats">
         <span id="ownedCount">0</span> / <span id="totalCount">0</span>
@@ -28,6 +30,7 @@
         <span class="finish-stat foil"><span class="fi">✦</span> Foil <strong id="foilCount">0</strong></span>
       </div>
       <div class="value-line">Collection value: <strong id="ownedValue">$0.00</strong> <span class="muted">of <span id="totalValue">$0.00</span></span></div>
+    </div>
     </div>
   </div>
 </header>
@@ -84,6 +87,9 @@
   </div>
 </div>
 
-<script src="app.js?v=multi1"></script>
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="mtg.js?v=1"></script>
+<script src="app.js?v=multi2"></script>
 </body>
 </html>

@@ -17,9 +17,13 @@
 
   const statusEl = document.getElementById("status");
 
-  // ---- owned state (localStorage) ----
-  let owned = loadOwned();
-  function loadOwned() {
+  // ---- owned state ----
+  // { [cardId]: { n, f } }. Source is Supabase when signed in, else localStorage.
+  // localStorage is always kept as a cache/offline copy.
+  let owned = {};
+  let useCloud = false;
+
+  function loadLocal() {
     try {
       const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
       if (Array.isArray(raw)) {
@@ -32,7 +36,7 @@
       return {};
     }
   }
-  function saveOwned() {
+  function saveLocal() {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(owned));
     } catch (e) {}
@@ -45,7 +49,10 @@
     cur[finish] = !cur[finish];
     if (!cur.n && !cur.f) delete owned[id];
     else owned[id] = cur;
-    saveOwned();
+    saveLocal();
+    if (useCloud) {
+      Promise.resolve(window.MTG.setCard(CODE, id, cur)).catch(() => {});
+    }
   }
 
   const canN = (c) => (c.finishes || []).includes("nonfoil");
@@ -148,11 +155,31 @@
     return { meta: m, cards };
   }
 
+  // decide the ownership source and load it into `owned`
+  async function hydrateOwned() {
+    if (window.MTG) {
+      window.MTG.mountAccountBar(document.getElementById("account"));
+      await window.MTG.ready;
+      useCloud = window.MTG.enabled && !!window.MTG.user;
+    }
+    if (useCloud) {
+      try {
+        await window.MTG.importLocalOnce();
+        owned = await window.MTG.loadSet(CODE);
+      } catch (e) {
+        owned = loadLocal(); // fall back to cache on network error
+      }
+    } else {
+      owned = loadLocal();
+    }
+  }
+
   async function load() {
     if (!CODE) {
       showError("No set specified.", "Go back to the set list and pick a set.");
       return;
     }
+    await hydrateOwned();
     const cached = readCache();
     if (cached) {
       init(cached.meta, cached.cards);
@@ -390,7 +417,8 @@
     if (!Object.keys(owned).length) return;
     if (confirm("Clear your entire collection for this set? This can't be undone.")) {
       owned = {};
-      saveOwned();
+      saveLocal();
+      if (useCloud) Promise.resolve(window.MTG.clearSet(CODE)).catch(() => {});
       render();
     }
   });

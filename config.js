@@ -13,6 +13,6 @@
 // saved in this browser and there are no accounts.
 
 window.MTG_CONFIG = {
-  SUPABASE_URL: "",       // e.g. "https://abcdefghijklmno.supabase.co"
-  SUPABASE_ANON_KEY: "",  // e.g. "eyJhbGci..."
+  SUPABASE_URL: "https://yrkglppbvdpdxatrvnzj.supabase.co",
+  SUPABASE_ANON_KEY: "sb_publishable_ZU8PCbg53lje5hcwUS0IWw_UgCT6dOm",
 };

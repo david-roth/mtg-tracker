@@ -103,6 +103,21 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
 
+-- ============================================================
+-- Allow a signed-in user to delete their own account (and, via
+-- cascade, their profile + collection). Callable from the client
+-- via rpc('delete_own_account').
+-- ============================================================
+create or replace function public.delete_own_account()
+returns void
+language sql
+security definer set search_path = public
+as $$
+  delete from auth.users where id = auth.uid();
+$$;
+revoke all on function public.delete_own_account() from public, anon;
+grant execute on function public.delete_own_account() to authenticated;
+
 -- keep updated_at fresh on writes
 create or replace function public.touch_updated_at()
 returns trigger language plpgsql as $$

@@ -21,22 +21,25 @@
   ]);
   const isMain = (s) => !EXTRA_TYPES.has(s.type);
 
-  // ---- owned counts per set from localStorage ----
-  // key "mtg-tracker:<code>" -> { id: {n,f} }  ; we count entries (cards owned in any finish)
-  const ownedByCode = {};
-  (function scanOwned() {
+  // ---- owned counts per set ----
+  // signed in -> counts come from Supabase; otherwise from localStorage
+  // key "mtg-tracker:<code>" -> { id: {n,f} }
+  let ownedByCode = {};
+  function scanLocal() {
+    const out = {};
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
       if (!k || !k.startsWith("mtg-tracker:")) continue;
       const code = k.slice("mtg-tracker:".length);
       try {
         const v = JSON.parse(localStorage.getItem(k) || "{}");
-        ownedByCode[code] = Array.isArray(v) ? v.length : Object.keys(v).length;
+        out[code] = Array.isArray(v) ? v.length : Object.keys(v).length;
       } catch (e) {
-        ownedByCode[code] = 0;
+        out[code] = 0;
       }
     }
-  })();
+    return out;
+  }
   const ownedCount = (code) => ownedByCode[code] || 0;
 
   function prettyType(t) {
@@ -192,5 +195,18 @@
     render();
   });
 
-  render();
+  // ---- init: account bar + counts (Supabase when signed in, else local) ----
+  (async function init() {
+    ownedByCode = scanLocal(); // instant first paint
+    render();
+    if (window.MTG) {
+      MTG.mountAccountBar(document.getElementById("account"));
+      await MTG.ready;
+      if (MTG.enabled && MTG.user) {
+        await MTG.importLocalOnce();
+        ownedByCode = await MTG.countsBySet();
+        render();
+      }
+    }
+  })();
 })();

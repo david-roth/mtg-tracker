@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MTG Set Tracker</title>
-<link rel="stylesheet" href="styles.css?v=5">
+<link rel="stylesheet" href="styles.css?v=7">
 </head>
 <body>
 <header class="topbar">
@@ -16,8 +16,11 @@
         <span class="brand-sub">Set Collection Tracker</span>
       </div>
     </div>
-    <div class="progress-block">
-      <div class="value-line"><strong id="setsTracked">0</strong> sets started · <strong id="cardsOwned">0</strong> cards in your collection</div>
+    <div class="topbar-right">
+      <div id="account" class="account-bar"></div>
+      <div class="progress-block">
+        <div class="value-line"><strong id="setsTracked">0</strong> sets started · <strong id="cardsOwned">0</strong> cards in your collection</div>
+      </div>
     </div>
   </div>
 </header>
@@ -52,7 +55,10 @@
 <main id="grid" class="sets-grid" aria-live="polite"></main>
 <div id="empty" class="empty-state" hidden>No sets match these filters.</div>
 
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="mtg.js?v=1"></script>
 <script src="sets-data.js?v=1"></script>
-<script src="sets-app.js?v=2"></script>
+<script src="sets-app.js?v=3"></script>
 </body>
 </html>
