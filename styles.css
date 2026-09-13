@@ -213,8 +213,74 @@ body{
   background-size:220% 100%;animation:foilshimmer 3s linear infinite;
 }
 
+/* default dot colour for rarities beyond the four main ones (special/bonus) */
+.rarity-dot{background:#b98cd6}
+
+/* ---- tracker header: back link + set icon ---- */
+.back-link{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:34px;height:34px;border-radius:8px;text-decoration:none;
+  color:var(--muted);border:1px solid var(--line);background:var(--panel);
+  font-size:18px;line-height:1;transition:all .12s;
+}
+.back-link:hover{color:var(--gold-bright);border-color:var(--gold)}
+.set-icon{
+  width:34px;height:34px;object-fit:contain;
+  filter:invert(78%) sepia(38%) saturate(500%) hue-rotate(2deg) brightness(95%);
+}
+
+/* ---- loading / error state ---- */
+.status-state{
+  max-width:640px;margin:60px auto;padding:26px 20px;text-align:center;
+  color:var(--muted);font-size:15px;
+}
+.status-state.error{
+  border:1px solid var(--line);border-radius:12px;background:var(--panel);
+  display:flex;flex-direction:column;gap:10px;align-items:center;
+}
+.status-title{color:var(--text);font-size:18px;font-weight:600}
+.status-detail{font-size:13.5px}
+
+/* ---- sets index grid ---- */
+.sets-grid{
+  max-width:1400px;margin:0 auto;padding:22px;
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));
+  gap:14px;
+}
+.set-card{
+  display:flex;flex-direction:column;gap:12px;
+  background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+  padding:14px;text-decoration:none;color:var(--text);
+  transition:transform .13s ease,border-color .13s ease,box-shadow .13s ease;
+}
+.set-card:hover{transform:translateY(-3px);border-color:var(--gold);box-shadow:var(--shadow)}
+.set-card.started{border-color:#39543f}
+.set-card-top{display:flex;gap:12px;align-items:flex-start;min-height:52px}
+.set-card-icon{
+  width:40px;height:40px;object-fit:contain;flex:none;
+  filter:invert(78%) sepia(38%) saturate(500%) hue-rotate(2deg) brightness(95%);
+}
+.set-card-info{min-width:0;flex:1}
+.set-card-name{
+  margin:0 0 5px;font-size:15px;font-weight:600;color:var(--gold-bright);
+  line-height:1.25;
+}
+.set-card-meta{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:3px}
+.set-code{
+  font-size:10.5px;letter-spacing:.5px;font-weight:700;color:var(--text);
+  background:var(--panel-2);border:1px solid var(--line);padding:1px 6px;border-radius:5px;
+}
+.set-type{font-size:11.5px;color:var(--muted)}
+.set-card-date{font-size:11.5px;color:var(--muted)}
+.set-card-progress{margin-top:auto}
+.mini-track{height:7px;background:#0b0d12;border:1px solid var(--line);border-radius:5px;overflow:hidden}
+.mini-fill{height:100%;background:linear-gradient(90deg,var(--gold),var(--gold-bright));width:0}
+.set-card.started .mini-fill{background:linear-gradient(90deg,#4caf7d,#7fe0ab)}
+.mini-stats{display:flex;justify-content:space-between;font-size:11.5px;color:var(--muted);margin-top:5px}
+
 @media (max-width:640px){
   .grid{grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:11px;padding:14px}
+  .sets-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:11px;padding:14px}
   .topbar-inner{padding:12px 16px}
   .controls-inner{padding:10px 16px}
   .hint{display:none}

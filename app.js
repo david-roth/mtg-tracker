@@ -1,19 +1,27 @@
 (function () {
   "use strict";
 
-  const DATA = window.CARD_DATA || { meta: {}, cards: [] };
-  const CARDS = DATA.cards;
-  const STORAGE_KEY = "mtg-tracker:" + (DATA.meta.code || "set");
+  // ---- which set? ----
+  const params = new URLSearchParams(location.search);
+  const CODE = (params.get("code") || "").toLowerCase().trim();
+  const STORAGE_KEY = "mtg-tracker:" + CODE;
+  const CACHE_KEY = "mtg-cache:" + CODE;
+  const CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days
 
   const RARITY_ORDER = { common: 0, uncommon: 1, rare: 2, mythic: 3 };
 
+  // populated after load
+  let CARDS = [];
+  let META = { code: CODE, name: CODE.toUpperCase(), released: null };
+  let TOTAL_VALUE = 0;
+
+  const statusEl = document.getElementById("status");
+
   // ---- owned state (localStorage) ----
-  // shape: { [id]: { n: bool, f: bool } }  (n = non-foil, f = foil)
   let owned = loadOwned();
   function loadOwned() {
     try {
       const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
-      // migrate old array-of-ids format -> treat each as non-foil owned
       if (Array.isArray(raw)) {
         const o = {};
         raw.forEach((id) => (o[id] = { n: true, f: false }));
@@ -40,11 +48,8 @@
     saveOwned();
   }
 
-  // does this card come in this finish?
   const canN = (c) => (c.finishes || []).includes("nonfoil");
   const canF = (c) => (c.finishes || []).includes("foil");
-
-  // prices per finish (numbers; NaN when unknown)
   const priceN = (c) => parseFloat(c.usd);
   const priceF = (c) => parseFloat(c.usd_foil);
 
@@ -58,30 +63,149 @@
   const sortEl = document.getElementById("sort");
   const resultCount = document.getElementById("resultCount");
 
-  // ---- header meta ----
-  const fullName = DATA.meta.name || "";
-  const code = (DATA.meta.code || "").toUpperCase();
-  const colon = fullName.indexOf(":");
-  const title = colon > -1 ? fullName.slice(0, colon).trim() : fullName;
-  const subtitle = colon > -1 ? fullName.slice(colon + 1).trim() + " · " + code : code;
-  document.getElementById("setName").textContent = title;
-  document.getElementById("setSub").textContent = subtitle;
-  document.title = title + " Set Tracker";
-  document.getElementById("totalCount").textContent = CARDS.length;
-
-  // total = value of owning every printing in every finish it comes in
-  const TOTAL_VALUE = CARDS.reduce(
-    (s, c) => s + (priceN(c) || 0) + (priceF(c) || 0),
-    0
-  );
-  document.getElementById("totalValue").textContent = fmt(TOTAL_VALUE);
-
   function fmt(n) {
     return "$" + n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
-  // short price for badges: "$0.13" or "—" when unknown
   function price(n) {
     return isNaN(n) ? "—" : fmt(n);
+  }
+
+  // ---- data loading (Scryfall, with localStorage cache) ----
+  function getJSON(url) {
+    return fetch(url, { headers: { Accept: "application/json" } }).then((r) => {
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      return r.json();
+    });
+  }
+
+  function readCache() {
+    try {
+      const c = JSON.parse(localStorage.getItem(CACHE_KEY) || "null");
+      if (c && c.ts && Date.now() - c.ts < CACHE_TTL && Array.isArray(c.cards)) return c;
+    } catch (e) {}
+    return null;
+  }
+  function writeCache(meta, cards) {
+    try {
+      localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), meta, cards }));
+    } catch (e) {
+      // quota: drop other cached sets, then retry once
+      try {
+        Object.keys(localStorage)
+          .filter((k) => k.startsWith("mtg-cache:") && k !== CACHE_KEY)
+          .forEach((k) => localStorage.removeItem(k));
+        localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), meta, cards }));
+      } catch (e2) {}
+    }
+  }
+
+  function trimCard(c) {
+    let img = c.image_uris || {};
+    if (!img.small && c.card_faces && c.card_faces[0]) img = c.card_faces[0].image_uris || {};
+    const p = c.prices || {};
+    return {
+      id: c.id,
+      name: c.name,
+      num: c.collector_number,
+      rarity: c.rarity,
+      type: c.type_line || "",
+      small: img.small,
+      normal: img.normal,
+      usd: p.usd,
+      usd_foil: p.usd_foil,
+      finishes: c.finishes || [],
+    };
+  }
+
+  function numKey(c) {
+    const m = /^(\d+)/.exec(c.num || "");
+    return m ? parseInt(m[1], 10) : 99999;
+  }
+
+  async function fetchSet() {
+    const meta = await getJSON("https://api.scryfall.com/sets/" + encodeURIComponent(CODE));
+    const cards = [];
+    let url =
+      "https://api.scryfall.com/cards/search?q=" +
+      encodeURIComponent("e:" + CODE) +
+      "&unique=prints&order=set&include_extras=true";
+    let page = 0;
+    while (url) {
+      const d = await getJSON(url);
+      d.data.forEach((c) => cards.push(trimCard(c)));
+      page++;
+      statusEl.textContent = "Loading cards… " + cards.length + " so far";
+      url = d.has_more ? d.next_page : null;
+      if (url) await new Promise((r) => setTimeout(r, 120));
+    }
+    cards.sort((a, b) => numKey(a) - numKey(b) || (a.num || "").localeCompare(b.num || "", undefined, { numeric: true }));
+    const m = {
+      code: meta.code,
+      name: meta.name,
+      released: meta.released_at,
+      icon: meta.icon_svg_uri,
+    };
+    return { meta: m, cards };
+  }
+
+  async function load() {
+    if (!CODE) {
+      showError("No set specified.", "Go back to the set list and pick a set.");
+      return;
+    }
+    const cached = readCache();
+    if (cached) {
+      init(cached.meta, cached.cards);
+      return;
+    }
+    try {
+      const { meta, cards } = await fetchSet();
+      if (!cards.length) {
+        showError("No cards found for “" + CODE + "”.", "This set may have no card data on Scryfall.");
+        return;
+      }
+      writeCache(meta, cards);
+      init(meta, cards);
+    } catch (e) {
+      showError("Couldn’t load this set.", "Check your connection and reload. (" + e.message + ")");
+    }
+  }
+
+  function showError(title, detail) {
+    statusEl.innerHTML =
+      '<div class="status-title">' + title + "</div>" +
+      '<div class="status-detail">' + detail + "</div>" +
+      '<a class="ghost-btn" href="index.html">← All sets</a>';
+    statusEl.classList.add("error");
+    document.getElementById("setName").textContent = "Set not found";
+  }
+
+  // ---- init once data is present ----
+  function init(meta, cards) {
+    META = meta;
+    CARDS = cards;
+    statusEl.hidden = true;
+
+    // header
+    const name = meta.name || CODE.toUpperCase();
+    const code = (meta.code || CODE).toUpperCase();
+    document.getElementById("setName").textContent = name;
+    const dateStr = meta.released
+      ? new Date(meta.released).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })
+      : "";
+    document.getElementById("setSub").textContent = code + (dateStr ? " · " + dateStr : "");
+    document.title = name + " — Set Tracker";
+    if (meta.icon) {
+      const ic = document.getElementById("setIcon");
+      ic.src = meta.icon;
+      ic.hidden = false;
+    }
+    document.getElementById("totalCount").textContent = CARDS.length;
+
+    TOTAL_VALUE = CARDS.reduce((s, c) => s + (priceN(c) || 0) + (priceF(c) || 0), 0);
+    document.getElementById("totalValue").textContent = fmt(TOTAL_VALUE);
+
+    render();
   }
 
   // ---- rendering ----
@@ -92,9 +216,8 @@
       if (state.owned === "missing" && hasAny(c.id)) return false;
       if (state.owned === "foil" && !hasF(c.id)) return false;
       if (state.search) {
-        const q = state.search;
         const hay = (c.name + " " + c.num + " " + c.type).toLowerCase();
-        if (!hay.includes(q)) return false;
+        if (!hay.includes(state.search)) return false;
       }
       return true;
     });
@@ -115,9 +238,9 @@
   }
 
   function numCmp(a, b) {
-    const na = parseInt(a.num, 10), nb = parseInt(b.num, 10);
-    if (!isNaN(na) && !isNaN(nb) && na !== nb) return na - nb;
-    return a.num.localeCompare(b.num, undefined, { numeric: true });
+    const na = numKey(a), nb = numKey(b);
+    if (na !== nb) return na - nb;
+    return (a.num || "").localeCompare(b.num || "", undefined, { numeric: true });
   }
 
   function cardClasses(c) {
@@ -134,9 +257,7 @@
       const b = document.createElement("button");
       b.className = "ft nf" + (hasN(c.id) ? " on" : "");
       b.dataset.finish = "n";
-      b.title =
-        (hasN(c.id) ? "Non-foil owned — click to remove" : "Mark non-foil owned") +
-        " · " + price(priceN(c));
+      b.title = (hasN(c.id) ? "Non-foil owned — click to remove" : "Mark non-foil owned") + " · " + price(priceN(c));
       b.innerHTML = '<span class="fi">✓</span><span class="fp">' + price(priceN(c)) + "</span>";
       wrap.appendChild(b);
     }
@@ -144,9 +265,7 @@
       const b = document.createElement("button");
       b.className = "ft foil" + (hasF(c.id) ? " on" : "");
       b.dataset.finish = "f";
-      b.title =
-        (hasF(c.id) ? "Foil owned — click to remove" : "Mark foil owned") +
-        " · " + price(priceF(c));
+      b.title = (hasF(c.id) ? "Foil owned — click to remove" : "Mark foil owned") + " · " + price(priceF(c));
       b.innerHTML = '<span class="fi">✦</span><span class="fp">' + price(priceF(c)) + "</span>";
       wrap.appendChild(b);
     }
@@ -181,13 +300,11 @@
       el.appendChild(dot);
 
       el.appendChild(finishToggles(c));
-
       frag.appendChild(el);
     }
     grid.appendChild(frag);
 
-    resultCount.textContent =
-      list.length + (list.length === 1 ? " card" : " cards") + " shown";
+    resultCount.textContent = list.length + (list.length === 1 ? " card" : " cards") + " shown";
     updateProgress();
   }
 
@@ -208,7 +325,6 @@
     document.getElementById("foilCount").textContent = fCount;
   }
 
-  // apply owned/foil classes + toggle button state to one card element in place
   function refreshCard(id) {
     const el = grid.querySelector('.card[data-id="' + CSS.escape(id) + '"]');
     if (!el) return;
@@ -222,13 +338,8 @@
 
   function toggle(id, finish) {
     toggleFinish(id, finish);
-    // if the "owned/foil/missing" filter would now hide/show it, re-render
-    if (state.owned !== "all") {
-      render();
-    } else {
-      refreshCard(id);
-      updateProgress();
-    }
+    if (state.owned !== "all") render();
+    else { refreshCard(id); updateProgress(); }
     if (lightboxId === id) syncLightboxButtons();
   }
 
@@ -237,11 +348,8 @@
     const ft = e.target.closest(".ft");
     const card = e.target.closest(".card");
     if (!card) return;
-    if (ft) {
-      toggle(card.dataset.id, ft.dataset.finish);
-    } else {
-      openLightbox(card.dataset.id);
-    }
+    if (ft) toggle(card.dataset.id, ft.dataset.finish);
+    else openLightbox(card.dataset.id);
   });
 
   // ---- events: filters ----
@@ -301,13 +409,11 @@
     lbImg.src = c.normal || c.small || "";
     lbImg.alt = c.name;
     document.getElementById("lbName").textContent = c.name;
-    document.getElementById("lbMeta").textContent =
-      "#" + c.num + " · " + cap(c.rarity) + " · " + c.type;
+    document.getElementById("lbMeta").textContent = "#" + c.num + " · " + cap(c.rarity) + " · " + c.type;
     const parts = [];
     if (canN(c)) parts.push("Non-foil " + price(priceN(c)));
     if (canF(c)) parts.push("Foil " + price(priceF(c)));
-    document.getElementById("lbPrice").innerHTML =
-      "Market price · " + parts.join(" &nbsp;·&nbsp; ");
+    document.getElementById("lbPrice").innerHTML = "Market price · " + parts.join(" &nbsp;·&nbsp; ");
     lbNonfoil.hidden = !canN(c);
     lbFoil.hidden = !canF(c);
     syncLightboxButtons();
@@ -315,9 +421,9 @@
   }
   function syncLightboxButtons() {
     const n = hasN(lightboxId), f = hasF(lightboxId);
-    lbNonfoil.textContent = (n ? "✓ Non-foil owned" : "＋ Non-foil");
+    lbNonfoil.textContent = n ? "✓ Non-foil owned" : "＋ Non-foil";
     lbNonfoil.className = "own-btn finish-btn nf" + (n ? " on" : "");
-    lbFoil.textContent = (f ? "✦ Foil owned" : "＋ Foil");
+    lbFoil.textContent = f ? "✦ Foil owned" : "＋ Foil";
     lbFoil.className = "own-btn finish-btn foil" + (f ? " on" : "");
   }
   lbNonfoil.addEventListener("click", () => toggle(lightboxId, "n"));
@@ -338,5 +444,5 @@
   }
 
   // ---- go ----
-  render();
+  load();
 })();
