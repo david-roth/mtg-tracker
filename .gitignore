@@ -8,3 +8,7 @@ Desktop.ini
 
 # Claude Code local config
 .claude/
+
+# Supabase CLI local state
+supabase/.temp/
+supabase/.branches/
