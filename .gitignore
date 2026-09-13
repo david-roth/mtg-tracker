@@ -12,3 +12,6 @@ Desktop.ini
 # Supabase CLI local state
 supabase/.temp/
 supabase/.branches/
+
+# Cloudflare Pages build output
+dist/
