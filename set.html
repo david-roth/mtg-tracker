@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Set Tracker</title>
-<link rel="stylesheet" href="styles.css?v=7">
+<link rel="stylesheet" href="styles.css?v=8">
 </head>
 <body>
 <header class="topbar">
@@ -45,11 +45,22 @@
       <button class="chip r-rare" data-rarity="rare">Rare</button>
       <button class="chip r-mythic" data-rarity="mythic">Mythic</button>
     </div>
+    <div class="filter-group" id="colorFilters">
+      <button class="chip active" data-color="all">All</button>
+      <button class="chip c-w" data-color="W">White</button>
+      <button class="chip c-u" data-color="U">Blue</button>
+      <button class="chip c-b" data-color="B">Black</button>
+      <button class="chip c-r" data-color="R">Red</button>
+      <button class="chip c-g" data-color="G">Green</button>
+      <button class="chip c-m" data-color="multi">Multicolor</button>
+      <button class="chip c-c" data-color="colorless">Colorless</button>
+    </div>
     <div class="filter-group" id="ownedFilters">
       <button class="chip active" data-owned="all">Show all</button>
       <button class="chip" data-owned="owned">In collection</button>
-      <button class="chip" data-owned="foil">Foils</button>
-      <button class="chip" data-owned="missing">Missing</button>
+      <button class="chip" data-owned="foil">Foils owned</button>
+      <button class="chip" data-owned="nfmiss">Missing non-foil</button>
+      <button class="chip" data-owned="foilmiss">Missing foil</button>
     </div>
     <div class="spacer"></div>
     <label class="sort-label">Sort
@@ -90,6 +101,6 @@
 <script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="mtg.js?v=1"></script>
-<script src="app.js?v=multi2"></script>
+<script src="app.js?v=multi3"></script>
 </body>
 </html>

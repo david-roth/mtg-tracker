@@ -5,7 +5,7 @@
   const params = new URLSearchParams(location.search);
   const CODE = (params.get("code") || "").toLowerCase().trim();
   const STORAGE_KEY = "mtg-tracker:" + CODE;
-  const CACHE_KEY = "mtg-cache:" + CODE;
+  const CACHE_KEY = "mtg-cache:v2:" + CODE; // v2: cards now include colors
   const CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days
 
   const RARITY_ORDER = { common: 0, uncommon: 1, rare: 2, mythic: 3 };
@@ -61,7 +61,15 @@
   const priceF = (c) => parseFloat(c.usd_foil);
 
   // ---- filter state ----
-  const state = { rarity: "all", owned: "all", search: "", sort: "num" };
+  const state = { rarity: "all", color: "all", owned: "all", search: "", sort: "num" };
+
+  function colorMatch(c) {
+    if (state.color === "all") return true;
+    const cols = c.colors || [];
+    if (state.color === "colorless") return cols.length === 0;
+    if (state.color === "multi") return cols.length >= 2;
+    return cols.indexOf(state.color) !== -1;
+  }
 
   // ---- element refs ----
   const grid = document.getElementById("grid");
@@ -110,12 +118,17 @@
     let img = c.image_uris || {};
     if (!img.small && c.card_faces && c.card_faces[0]) img = c.card_faces[0].image_uris || {};
     const p = c.prices || {};
+    let colors = c.colors;
+    if (!colors && c.card_faces) {
+      colors = (c.card_faces[0] && c.card_faces[0].colors) || [];
+    }
     return {
       id: c.id,
       name: c.name,
       num: c.collector_number,
       rarity: c.rarity,
       type: c.type_line || "",
+      colors: colors || [],
       small: img.small,
       normal: img.normal,
       usd: p.usd,
@@ -239,9 +252,12 @@
   function currentList() {
     let list = CARDS.filter((c) => {
       if (state.rarity !== "all" && c.rarity !== state.rarity) return false;
+      if (!colorMatch(c)) return false;
       if (state.owned === "owned" && !hasAny(c.id)) return false;
-      if (state.owned === "missing" && hasAny(c.id)) return false;
       if (state.owned === "foil" && !hasF(c.id)) return false;
+      // missing a specific finish: that finish exists for the card but isn't owned
+      if (state.owned === "nfmiss" && !(canN(c) && !hasN(c.id))) return false;
+      if (state.owned === "foilmiss" && !(canF(c) && !hasF(c.id))) return false;
       if (state.search) {
         const hay = (c.name + " " + c.num + " " + c.type).toLowerCase();
         if (!hay.includes(state.search)) return false;
@@ -385,6 +401,13 @@
     if (!btn) return;
     state.rarity = btn.dataset.rarity;
     setActive("rarityFilters", btn);
+    render();
+  });
+  document.getElementById("colorFilters").addEventListener("click", (e) => {
+    const btn = e.target.closest(".chip");
+    if (!btn) return;
+    state.color = btn.dataset.color;
+    setActive("colorFilters", btn);
     render();
   });
   document.getElementById("ownedFilters").addEventListener("click", (e) => {
