@@ -294,17 +294,19 @@ body{
 #rarityFilters .r-mythic::before{background:var(--mythic)}
 
 #colorFilters .chip::before{
-  content:"";display:inline-block;width:11px;height:11px;border-radius:50%;
-  margin-right:7px;vertical-align:-1px;border:1px solid rgba(0,0,0,.45);background:#555;
+  content:"";display:inline-block;width:15px;height:15px;margin-right:7px;vertical-align:-3px;
+  background-repeat:no-repeat;background-position:center;background-size:contain;
 }
-#colorFilters [data-color="all"]::before{background:conic-gradient(#f6f3df,#3b82c4,#444,#d9534f,#4caf7d,#f6f3df);border-color:var(--line)}
-#colorFilters .c-w::before{background:#f6f3df}
-#colorFilters .c-u::before{background:#3b82c4}
-#colorFilters .c-b::before{background:#5b5b5b}
-#colorFilters .c-r::before{background:#d9534f}
-#colorFilters .c-g::before{background:#4caf7d}
-#colorFilters .c-m::before{background:var(--gold-bright)}
-#colorFilters .c-c::before{background:#cfd6df;border-radius:2px;transform:rotate(45deg)}
+/* real MTG mana symbols from Scryfall */
+#colorFilters .c-w::before{background-image:url("https://svgs.scryfall.io/card-symbols/W.svg")}
+#colorFilters .c-u::before{background-image:url("https://svgs.scryfall.io/card-symbols/U.svg")}
+#colorFilters .c-b::before{background-image:url("https://svgs.scryfall.io/card-symbols/B.svg")}
+#colorFilters .c-r::before{background-image:url("https://svgs.scryfall.io/card-symbols/R.svg")}
+#colorFilters .c-g::before{background-image:url("https://svgs.scryfall.io/card-symbols/G.svg")}
+#colorFilters .c-c::before{background-image:url("https://svgs.scryfall.io/card-symbols/C.svg")}
+/* "All" and "Multicolor" have no single card symbol — stylised pips */
+#colorFilters [data-color="all"]::before{width:13px;height:13px;border-radius:50%;border:1px solid var(--line);background:conic-gradient(from 90deg,#f6f3df,#3b82c4,#2b2b2b,#d9534f,#4caf7d,#f6f3df)}
+#colorFilters .c-m::before{width:13px;height:13px;border-radius:50%;border:1px solid rgba(0,0,0,.4);background:radial-gradient(circle at 38% 34%,#f3e2a6,#c9a24b)}
 
 #ownedFilters .chip::before{margin-right:6px;font-weight:700;display:inline-block}
 #ownedFilters [data-owned="all"]::before{content:"≡";color:var(--muted)}
