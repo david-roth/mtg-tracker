@@ -18,11 +18,8 @@ jobs:
       - name: Assemble static site (dist/)
         run: |
           mkdir -p dist
-          cp index.html set.html profile.html u.html \
-             styles.css \
-             app.js sets-app.js sets-data.js mtg.js profile.js u.js \
-             config.js \
-             dist/
+          # copy every top-level page/script/style (avoids missing new files)
+          cp *.html *.js *.css dist/
           ls -la dist
 
       - name: Deploy to Cloudflare Pages
