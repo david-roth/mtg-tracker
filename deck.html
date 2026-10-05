@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Deck — MTG Set Tracker</title>
+<link rel="stylesheet" href="styles.css?v=9">
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <a class="back-link" href="index.html" title="All sets">←</a>
+      <div class="brand-text">
+        <h1 id="deckTitle">Deck</h1>
+        <span class="brand-sub" id="deckSub"></span>
+      </div>
+    </div>
+    <div class="topbar-right"><div id="account" class="account-bar"></div></div>
+  </div>
+</header>
+
+<main class="page page-wide">
+  <div id="status" class="status-state">Loading deck…</div>
+
+  <div id="deckView" hidden>
+    <!-- Owner editor -->
+    <section class="card-panel" id="editor" hidden>
+      <div class="deck-meta-form">
+        <input id="dName" class="deck-name-input" placeholder="Deck name">
+        <select id="dFormat">
+          <option value="">Format…</option>
+          <option>Commander</option><option>Standard</option><option>Pioneer</option>
+          <option>Modern</option><option>Legacy</option><option>Vintage</option>
+          <option>Pauper</option><option>Brawl</option><option>Limited</option><option>Casual</option>
+        </select>
+        <label class="row-check"><input type="checkbox" id="dPublic"> Public (shareable by link)</label>
+        <button class="ghost-btn" id="copyLink">Copy share link</button>
+        <button class="ghost-btn danger" id="deleteDeck">Delete</button>
+        <span class="field-msg" id="deckMsg"></span>
+      </div>
+      <textarea id="dDesc" class="deck-desc-input" rows="2" placeholder="Description (optional)"></textarea>
+
+      <div class="add-card">
+        <input id="cardSearch" placeholder="Add cards — search by name…" autocomplete="off">
+        <select id="addBoard">
+          <option value="main">Mainboard</option>
+          <option value="commander">Commander</option>
+          <option value="side">Sideboard</option>
+        </select>
+        <div id="searchResults" class="search-results" hidden></div>
+      </div>
+    </section>
+
+    <!-- Read-only header (non-owners) -->
+    <section class="card-panel" id="readHead" hidden>
+      <h2 id="rName"></h2>
+      <p class="muted" id="rMeta"></p>
+      <p id="rDesc"></p>
+    </section>
+
+    <div class="deck-summary" id="deckSummary"></div>
+    <div id="boards"></div>
+  </div>
+</main>
+
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="mtg.js?v=2"></script>
+<script src="deck.js?v=1"></script>
+</body>
+</html>

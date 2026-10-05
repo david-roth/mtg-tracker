@@ -130,3 +130,57 @@ create trigger profiles_touch before update on public.profiles
 drop trigger if exists collection_touch on public.collection;
 create trigger collection_touch before update on public.collection
   for each row execute function public.touch_updated_at();
+
+-- ============================================================
+-- decks: user-built decks, shareable by public link
+-- ============================================================
+create table if not exists public.decks (
+  id          text primary key,           -- short random slug used in the share URL
+  user_id     uuid not null references auth.users(id) on delete cascade,
+  name        text not null default 'Untitled deck',
+  format      text,
+  description text,
+  is_public   boolean not null default true,
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now()
+);
+create index if not exists decks_user_idx on public.decks(user_id);
+
+create table if not exists public.deck_cards (
+  deck_id  text not null references public.decks(id) on delete cascade,
+  card_id  text not null,                 -- Scryfall card id
+  name     text not null,
+  set_code text,
+  image    text,                          -- small image url for display
+  usd      numeric,                       -- unit price snapshot (for deck value)
+  qty      int not null default 1,
+  board    text not null default 'main',  -- main | side | commander
+  primary key (deck_id, card_id, board)
+);
+
+alter table public.decks      enable row level security;
+alter table public.deck_cards enable row level security;
+
+drop policy if exists decks_select on public.decks;
+create policy decks_select on public.decks for select
+  using (is_public or auth.uid() = user_id);
+drop policy if exists decks_write on public.decks;
+create policy decks_write on public.decks for all
+  using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- deck_cards readable when the parent deck is readable; writable when it's owned
+drop policy if exists deck_cards_select on public.deck_cards;
+create policy deck_cards_select on public.deck_cards for select using (
+  exists (select 1 from public.decks d
+          where d.id = deck_cards.deck_id and (d.is_public or d.user_id = auth.uid()))
+);
+drop policy if exists deck_cards_write on public.deck_cards;
+create policy deck_cards_write on public.deck_cards for all using (
+  exists (select 1 from public.decks d where d.id = deck_cards.deck_id and d.user_id = auth.uid())
+) with check (
+  exists (select 1 from public.decks d where d.id = deck_cards.deck_id and d.user_id = auth.uid())
+);
+
+drop trigger if exists decks_touch on public.decks;
+create trigger decks_touch before update on public.decks
+  for each row execute function public.touch_updated_at();

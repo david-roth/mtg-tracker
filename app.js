@@ -5,7 +5,7 @@
   const params = new URLSearchParams(location.search);
   const CODE = (params.get("code") || "").toLowerCase().trim();
   const STORAGE_KEY = "mtg-tracker:" + CODE;
-  const CACHE_KEY = "mtg-cache:v2:" + CODE; // v2: cards now include colors
+  const CACHE_KEY = "mtg-cache:v3:" + CODE; // v3: cards include colors + EUR prices + buy links
   const CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days
 
   const RARITY_ORDER = { common: 0, uncommon: 1, rare: 2, mythic: 3 };
@@ -84,6 +84,33 @@
   function price(n) {
     return isNaN(n) ? "—" : fmt(n);
   }
+  function eur(n) {
+    n = parseFloat(n);
+    return isNaN(n) ? "—" : "€" + n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  // Multi-vendor price + buy-links block for the detail view
+  function priceBlock(c) {
+    const row = (label, nf, fo) =>
+      '<div class="price-vendor"><span class="pv-name">' + label + "</span>" +
+      '<span class="pv-vals"><span class="pv-nf">' + nf + '</span><span class="pv-fo">' + fo + "</span></span></div>";
+    const usdRow = row("TCGplayer", canN(c) ? price(priceN(c)) : "—", canF(c) ? price(priceF(c)) : "—");
+    const eurRow = row("Cardmarket", canN(c) ? eur(c.eur) : "—", canF(c) ? eur(c.eur_foil) : "—");
+    const q = encodeURIComponent(c.name);
+    const ck = "https://www.cardkingdom.com/catalog/search?search=header&filter%5Bname%5D=" + q;
+    const ebay = "https://www.ebay.com/sch/i.html?_nkw=" + q + "+mtg";
+    const tcg = c.tcg || "https://www.tcgplayer.com/search/all/product?q=" + q;
+    const cm = c.cm || "https://www.cardmarket.com/en/Magic/Products/Search?searchString=" + q;
+    const link = (href, label) =>
+      '<a class="buy-link" href="' + href + '" target="_blank" rel="noopener noreferrer">' + label + "</a>";
+    return (
+      '<div class="price-grid">' +
+      '<div class="price-head"><span></span><span class="pv-vals"><span>Non-foil</span><span>Foil</span></span></div>' +
+      usdRow + eurRow +
+      "</div>" +
+      '<div class="buy-row">' + link(ck, "Card Kingdom") + link(tcg, "TCGplayer") + link(cm, "Cardmarket") + link(ebay, "eBay") + "</div>"
+    );
+  }
 
   // ---- data loading (Scryfall, with localStorage cache) ----
   function getJSON(url) {
@@ -122,6 +149,7 @@
     if (!colors && c.card_faces) {
       colors = (c.card_faces[0] && c.card_faces[0].colors) || [];
     }
+    const pu = c.purchase_uris || {};
     return {
       id: c.id,
       name: c.name,
@@ -133,6 +161,10 @@
       normal: img.normal,
       usd: p.usd,
       usd_foil: p.usd_foil,
+      eur: p.eur,
+      eur_foil: p.eur_foil,
+      tcg: pu.tcgplayer || null,
+      cm: pu.cardmarket || null,
       finishes: c.finishes || [],
     };
   }
@@ -461,10 +493,7 @@
     lbImg.alt = c.name;
     document.getElementById("lbName").textContent = c.name;
     document.getElementById("lbMeta").textContent = "#" + c.num + " · " + cap(c.rarity) + " · " + c.type;
-    const parts = [];
-    if (canN(c)) parts.push("Non-foil " + price(priceN(c)));
-    if (canF(c)) parts.push("Foil " + price(priceF(c)));
-    document.getElementById("lbPrice").innerHTML = "Market price · " + parts.join(" &nbsp;·&nbsp; ");
+    document.getElementById("lbPrice").innerHTML = priceBlock(c);
     lbNonfoil.hidden = !canN(c);
     lbFoil.hidden = !canF(c);
     syncLightboxButtons();

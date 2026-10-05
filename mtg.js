@@ -129,6 +129,57 @@
     return { imported: rows.length };
   };
 
+  // ---------- decks ----------
+  function slug(n) {
+    const a = "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    let s = "";
+    const arr = new Uint32Array(n || 10);
+    if (window.crypto && crypto.getRandomValues) crypto.getRandomValues(arr);
+    else for (let i = 0; i < arr.length; i++) arr[i] = Math.floor(Math.random() * 1e9);
+    for (let i = 0; i < arr.length; i++) s += a[arr[i] % a.length];
+    return s;
+  }
+  MTG.listDecks = async function (userId) {
+    const uid = userId || (MTG.user && MTG.user.id);
+    if (!uid) return [];
+    const { data } = await sb.from("decks").select("*").eq("user_id", uid).order("updated_at", { ascending: false });
+    return data || [];
+  };
+  MTG.getDeck = async function (id) {
+    const { data: deck } = await sb.from("decks").select("*").eq("id", id).maybeSingle();
+    if (!deck) return null;
+    const { data: cards } = await sb.from("deck_cards").select("*").eq("deck_id", id);
+    return { deck: deck, cards: cards || [] };
+  };
+  MTG.createDeck = async function (fields) {
+    if (!MTG.user) return { error: { message: "Not signed in" } };
+    for (let attempt = 0; attempt < 4; attempt++) {
+      const id = slug(10);
+      const row = Object.assign({ id: id, user_id: MTG.user.id }, fields || {});
+      const { data, error } = await sb.from("decks").insert(row).select().single();
+      if (!error) return { data: data };
+      if (error.code !== "23505") return { error: error };
+    }
+    return { error: { message: "Could not allocate a deck id" } };
+  };
+  MTG.updateDeck = (id, fields) => sb.from("decks").update(fields).eq("id", id).select().single();
+  MTG.deleteDeck = (id) => sb.from("decks").delete().eq("id", id);
+  MTG.setDeckCard = function (deckId, card, qty, board) {
+    board = board || "main";
+    if (qty <= 0) {
+      return sb.from("deck_cards").delete().eq("deck_id", deckId).eq("card_id", card.id).eq("board", board);
+    }
+    return sb.from("deck_cards").upsert(
+      {
+        deck_id: deckId, card_id: card.id, name: card.name,
+        set_code: card.set_code || card.set || null,
+        image: card.image || card.small || null,
+        usd: card.usd != null ? card.usd : null, qty: qty, board: board,
+      },
+      { onConflict: "deck_id,card_id,board" }
+    );
+  };
+
   // ---------- account management ----------
   MTG.updateEmail = (email) => sb.auth.updateUser({ email });
   MTG.updatePassword = (password) => sb.auth.updateUser({ password });
@@ -169,6 +220,8 @@
         menu.hidden = true;
         menu.innerHTML =
           '<a href="profile.html">My profile & collection</a>' +
+          '<a href="profile.html#decks">My decks</a>' +
+          '<a href="deck.html?new=1">+ New deck</a>' +
           (MTG.profile ? '<a href="u.html?user=' + encodeURIComponent(MTG.profile.username) + '">View public profile</a>' : "") +
           '<a href="profile.html#account">Account settings</a>' +
           '<button class="acct-signout">Sign out</button>';

@@ -27,9 +27,30 @@
     const profile = (await MTG.getMyProfile()) || {};
     fillProfile(profile);
     loadOverview();
+    loadDecks();
     wireProfileForm();
     wireAccount();
   })();
+
+  async function loadDecks() {
+    const box = $("deckList");
+    const decks = await MTG.listDecks();
+    if (!decks.length) {
+      box.innerHTML = '<p class="muted">No decks yet. Create one to start building.</p>';
+      return;
+    }
+    box.innerHTML = "";
+    decks.forEach((d) => {
+      const a = document.createElement("a");
+      a.className = "deck-row";
+      a.href = "deck.html?id=" + encodeURIComponent(d.id);
+      a.innerHTML =
+        '<span class="dr-name">' + MTG.escapeHtml(d.name || "Untitled deck") + "</span>" +
+        '<span class="dr-meta">' + (d.format ? MTG.escapeHtml(d.format) + " · " : "") +
+        (d.is_public ? "public" : "private") + "</span>";
+      box.appendChild(a);
+    });
+  }
 
   function fillProfile(p) {
     const f = $("profileForm");
