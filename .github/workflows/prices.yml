@@ -36,4 +36,4 @@ jobs:
           SUPABASE_URL: https://yrkglppbvdpdxatrvnzj.supabase.co
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           NODE_OPTIONS: --max-old-space-size=4096
-        run: node scripts/ingest-ck-prices.mjs prices.json ids.json
+        run: node scripts/ingest-ck-prices.cjs prices.json ids.json
