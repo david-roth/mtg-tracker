@@ -129,6 +129,19 @@
     return { imported: rows.length };
   };
 
+  // ---------- prices (Card Kingdom, from the prices table) ----------
+  // returns { [card_id]: { n, f } } (Card Kingdom normal/foil USD)
+  MTG.getPrices = async function (ids) {
+    if (!enabled || !ids || !ids.length) return {};
+    const out = {};
+    for (let i = 0; i < ids.length; i += 900) {
+      const chunk = ids.slice(i, i + 900);
+      const { data, error } = await sb.rpc("prices_for", { ids: chunk });
+      if (!error && data) data.forEach((r) => (out[r.card_id] = { n: r.ck_normal, f: r.ck_foil }));
+    }
+    return out;
+  };
+
   // ---------- decks ----------
   function slug(n) {
     const a = "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";

@@ -59,6 +59,11 @@
   const canF = (c) => (c.finishes || []).includes("foil");
   const priceN = (c) => parseFloat(c.usd);
   const priceF = (c) => parseFloat(c.usd_foil);
+  // Card Kingdom (primary source); falls back to TCGplayer when CK is unknown
+  const ckN = (c) => parseFloat(c.ck);
+  const ckF = (c) => parseFloat(c.ck_foil);
+  const primaryN = (c) => (isNaN(ckN(c)) ? priceN(c) : ckN(c));
+  const primaryF = (c) => (isNaN(ckF(c)) ? priceF(c) : ckF(c));
 
   // ---- filter state ----
   const state = { rarity: "all", color: "all", owned: "all", search: "", sort: "num" };
@@ -91,9 +96,10 @@
 
   // Multi-vendor price + buy-links block for the detail view
   function priceBlock(c) {
-    const row = (label, nf, fo) =>
-      '<div class="price-vendor"><span class="pv-name">' + label + "</span>" +
+    const row = (label, nf, fo, cls) =>
+      '<div class="price-vendor ' + (cls || "") + '"><span class="pv-name">' + label + "</span>" +
       '<span class="pv-vals"><span class="pv-nf">' + nf + '</span><span class="pv-fo">' + fo + "</span></span></div>";
+    const ckRow = row("Card Kingdom", canN(c) ? price(ckN(c)) : "—", canF(c) ? price(ckF(c)) : "—", "primary");
     const usdRow = row("TCGplayer", canN(c) ? price(priceN(c)) : "—", canF(c) ? price(priceF(c)) : "—");
     const eurRow = row("Cardmarket", canN(c) ? eur(c.eur) : "—", canF(c) ? eur(c.eur_foil) : "—");
     const q = encodeURIComponent(c.name);
@@ -106,7 +112,7 @@
     return (
       '<div class="price-grid">' +
       '<div class="price-head"><span></span><span class="pv-vals"><span>Non-foil</span><span>Foil</span></span></div>' +
-      usdRow + eurRow +
+      ckRow + usdRow + eurRow +
       "</div>" +
       '<div class="buy-row">' + link(ck, "Card Kingdom") + link(tcg, "TCGplayer") + link(cm, "Cardmarket") + link(ebay, "eBay") + "</div>"
     );
@@ -253,7 +259,7 @@
   }
 
   // ---- init once data is present ----
-  function init(meta, cards) {
+  async function init(meta, cards) {
     META = meta;
     CARDS = cards;
     statusEl.hidden = true;
@@ -274,10 +280,29 @@
     }
     document.getElementById("totalCount").textContent = CARDS.length;
 
-    TOTAL_VALUE = CARDS.reduce((s, c) => s + (priceN(c) || 0) + (priceF(c) || 0), 0);
-    document.getElementById("totalValue").textContent = fmt(TOTAL_VALUE);
-
+    // paint immediately with TCGplayer prices, then upgrade to Card Kingdom
+    recomputeTotal();
     render();
+    mergeCardKingdomPrices();
+  }
+
+  function recomputeTotal() {
+    TOTAL_VALUE = CARDS.reduce((s, c) => s + (primaryN(c) || 0) + (primaryF(c) || 0), 0);
+    document.getElementById("totalValue").textContent = fmt(TOTAL_VALUE);
+  }
+
+  // fetch Card Kingdom prices (primary source) and re-render once merged
+  async function mergeCardKingdomPrices() {
+    if (!window.MTG || !window.MTG.enabled) return;
+    try {
+      const pm = await window.MTG.getPrices(CARDS.map((c) => c.id));
+      let any = false;
+      CARDS.forEach((c) => {
+        const p = pm[c.id];
+        if (p) { c.ck = p.n; c.ck_foil = p.f; any = true; }
+      });
+      if (any) { recomputeTotal(); render(); }
+    } catch (e) {}
   }
 
   // ---- rendering ----
@@ -304,7 +329,7 @@
         case "rarity":
           return (RARITY_ORDER[b.rarity] - RARITY_ORDER[a.rarity]) || numCmp(a, b);
         case "value":
-          return (parseFloat(b.usd) || 0) - (parseFloat(a.usd) || 0);
+          return (primaryN(b) || 0) - (primaryN(a) || 0);
         default:
           return numCmp(a, b);
       }
@@ -332,16 +357,16 @@
       const b = document.createElement("button");
       b.className = "ft nf" + (hasN(c.id) ? " on" : "");
       b.dataset.finish = "n";
-      b.title = (hasN(c.id) ? "Non-foil owned — click to remove" : "Mark non-foil owned") + " · " + price(priceN(c));
-      b.innerHTML = '<span class="fi">✓</span><span class="fp">' + price(priceN(c)) + "</span>";
+      b.title = (hasN(c.id) ? "Non-foil owned — click to remove" : "Mark non-foil owned") + " · " + price(primaryN(c));
+      b.innerHTML = '<span class="fi">✓</span><span class="fp">' + price(primaryN(c)) + "</span>";
       wrap.appendChild(b);
     }
     if (canF(c)) {
       const b = document.createElement("button");
       b.className = "ft foil" + (hasF(c.id) ? " on" : "");
       b.dataset.finish = "f";
-      b.title = (hasF(c.id) ? "Foil owned — click to remove" : "Mark foil owned") + " · " + price(priceF(c));
-      b.innerHTML = '<span class="fi">✦</span><span class="fp">' + price(priceF(c)) + "</span>";
+      b.title = (hasF(c.id) ? "Foil owned — click to remove" : "Mark foil owned") + " · " + price(primaryF(c));
+      b.innerHTML = '<span class="fi">✦</span><span class="fp">' + price(primaryF(c)) + "</span>";
       wrap.appendChild(b);
     }
     return wrap;
@@ -387,8 +412,8 @@
     let nCount = 0, fCount = 0, anyCount = 0, val = 0;
     for (const c of CARDS) {
       const n = hasN(c.id), f = hasF(c.id);
-      if (n) { nCount++; val += priceN(c) || 0; }
-      if (f) { fCount++; val += priceF(c) || 0; }
+      if (n) { nCount++; val += primaryN(c) || 0; }
+      if (f) { fCount++; val += primaryF(c) || 0; }
       if (n || f) anyCount++;
     }
     const pct = CARDS.length ? Math.round((anyCount / CARDS.length) * 100) : 0;

@@ -184,3 +184,27 @@ create policy deck_cards_write on public.deck_cards for all using (
 drop trigger if exists decks_touch on public.decks;
 create trigger decks_touch before update on public.decks
   for each row execute function public.touch_updated_at();
+
+-- ============================================================
+-- prices: Card Kingdom retail prices, keyed by Scryfall card id.
+-- Populated by the scheduled ingestion job (scripts/ingest-ck-prices.mjs)
+-- using the service_role key; read-only for everyone else.
+-- ============================================================
+create table if not exists public.prices (
+  card_id    text primary key,     -- Scryfall card id
+  ck_normal  numeric,              -- Card Kingdom retail, non-foil (USD)
+  ck_foil    numeric,              -- Card Kingdom retail, foil (USD)
+  updated_at timestamptz not null default now()
+);
+
+alter table public.prices enable row level security;
+drop policy if exists prices_select on public.prices;
+create policy prices_select on public.prices for select using (true);
+-- no insert/update/delete policy: only service_role (which bypasses RLS) writes
+
+-- bulk lookup by a list of card ids (avoids long GET URLs)
+create or replace function public.prices_for(ids text[])
+returns setof public.prices language sql stable security invoker
+as $$ select * from public.prices where card_id = any(ids) $$;
+revoke all on function public.prices_for(text[]) from public;
+grant execute on function public.prices_for(text[]) to anon, authenticated;

@@ -1,0 +1,39 @@
+name: Sync Card Kingdom prices
+
+on:
+  schedule:
+    - cron: "17 9 * * *"   # daily ~09:17 UTC
+  workflow_dispatch: {}
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Download MTGJSON data
+        run: |
+          curl -sL -o prices.zip "https://mtgjson.com/api/v5/AllPricesToday.json.zip"
+          curl -sL -o ids.zip    "https://mtgjson.com/api/v5/AllIdentifiers.json.zip"
+          unzip -o -q prices.zip
+          unzip -o -q ids.zip
+          mv AllPricesToday.json prices.json
+          mv AllIdentifiers.json ids.json
+          ls -lh prices.json ids.json
+
+      - name: Install deps
+        run: npm i --no-save stream-json@1 stream-chain@2
+
+      - name: Ingest Card Kingdom prices
+        env:
+          SUPABASE_URL: https://yrkglppbvdpdxatrvnzj.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          NODE_OPTIONS: --max-old-space-size=4096
+        run: node scripts/ingest-ck-prices.mjs prices.json ids.json
