@@ -1,0 +1,47 @@
+name: Refresh set & Secret Lair data
+
+on:
+  schedule:
+    - cron: "41 6 * * 1"   # weekly, Mondays ~06:41 UTC
+  workflow_dispatch: {}
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write   # commit the regenerated data files
+      actions: write    # kick off the deploy workflow
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Rebuild sets-data.js and secret-lair-data.js
+        run: node scripts/build-data.cjs
+
+      - name: Commit if changed
+        id: commit
+        run: |
+          if git diff --quiet -- sets-data.js secret-lair-data.js; then
+            echo "No data changes."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add sets-data.js secret-lair-data.js
+          git commit -m "Weekly data refresh ($(date -u +%Y-%m-%d))"
+          git push
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      # pushes made with GITHUB_TOKEN don't trigger other workflows, so start the deploy explicitly
+      - name: Deploy
+        if: steps.commit.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run deploy.yml --ref main

@@ -26,6 +26,13 @@ and track which cards you own — non-foil and foil, independently.
 - **Progress & filters** — completion %, separate non-foil / foil counts, filters by rarity,
   "In collection", "Foils", and "Missing", card search, and sorting.
 - **Detail view** — click a card's art for a large view with both prices and toggle buttons.
+- **Card & illustrator search** — on the main page, switch the search to *Cards* or *Illustrator* to find
+  every paper printing (via Scryfall) along with the set it belongs to; click one to open it in its set.
+- **Secret Lair tab** — every Secret Lair drop, commander deck and countdown kit (from MTGJSON), searchable
+  by drop name or by a card in it. Each drop opens as its own tracker (`set.html?drop=<id>`); cards are
+  still saved under their real set (`sld`, `plst`, …), so progress is shared with the set pages.
+- **Weekly data refresh** — `.github/workflows/refresh-data.yml` runs `scripts/build-data.cjs` every Monday
+  to regenerate `sets-data.js` and `secret-lair-data.js`, commits any changes, and redeploys.
 - **Saved locally** — your collection persists in the browser via `localStorage`; nothing is uploaded.
   Progress carries across the two pages.
 

@@ -1,11 +1,16 @@
 (function () {
   "use strict";
 
-  // ---- which set? ----
+  // ---- which set (or Secret Lair drop)? ----
+  // set.html?code=<set>        one Scryfall set
+  // set.html?drop=<drop id>    one Secret Lair drop; its cards can span sets (sld, plst, ...)
+  //                            and each card is still saved under its own set code
   const params = new URLSearchParams(location.search);
-  const CODE = (params.get("code") || "").toLowerCase().trim();
-  const STORAGE_KEY = "mtg-tracker:" + CODE;
-  const CACHE_KEY = "mtg-cache:v3:" + CODE; // v3: cards include colors + EUR prices + buy links
+  const DROP_ID = (params.get("drop") || "").trim();
+  const CODE = DROP_ID ? "sld" : (params.get("code") || "").toLowerCase().trim();
+  const FOCUS_CARD = params.get("card"); // open this card's detail view once loaded
+  const storageKey = (code) => "mtg-tracker:" + code;
+  const CACHE_KEY = "mtg-cache:v3:" + (DROP_ID ? "drop:" + DROP_ID : CODE); // v3: cards include colors + EUR prices + buy links
   const CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days
 
   const RARITY_ORDER = { common: 0, uncommon: 1, rare: 2, mythic: 3 };
@@ -18,14 +23,20 @@
   const statusEl = document.getElementById("status");
 
   // ---- owned state ----
-  // { [cardId]: { n, f } }. Source is Supabase when signed in, else localStorage.
+  // { [setCode]: { [cardId]: { n, f } } }. Source is Supabase when signed in, else localStorage.
   // localStorage is always kept as a cache/offline copy.
-  let owned = {};
+  let ownedBySet = {};
+  let SET_CODES = [CODE]; // sets this page's cards belong to
+  const cardSet = {};     // cardId -> set code (drop pages); defaults to CODE
+  let DROP = null;
   let useCloud = false;
 
-  function loadLocal() {
+  const setOf = (id) => cardSet[id] || CODE;
+  const ownOf = (id) => ownedBySet[setOf(id)] || {};
+
+  function loadLocal(code) {
     try {
-      const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+      const raw = JSON.parse(localStorage.getItem(storageKey(code)) || "{}");
       if (Array.isArray(raw)) {
         const o = {};
         raw.forEach((id) => (o[id] = { n: true, f: false }));
@@ -36,22 +47,24 @@
       return {};
     }
   }
-  function saveLocal() {
+  function saveLocal(code) {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(owned));
+      localStorage.setItem(storageKey(code), JSON.stringify(ownedBySet[code] || {}));
     } catch (e) {}
   }
-  const hasN = (id) => !!(owned[id] && owned[id].n);
-  const hasF = (id) => !!(owned[id] && owned[id].f);
+  const hasN = (id) => !!(ownOf(id)[id] && ownOf(id)[id].n);
+  const hasF = (id) => !!(ownOf(id)[id] && ownOf(id)[id].f);
   const hasAny = (id) => hasN(id) || hasF(id);
   function toggleFinish(id, finish) {
+    const code = setOf(id);
+    const owned = (ownedBySet[code] = ownedBySet[code] || {});
     const cur = owned[id] || { n: false, f: false };
     cur[finish] = !cur[finish];
     if (!cur.n && !cur.f) delete owned[id];
     else owned[id] = cur;
-    saveLocal();
+    saveLocal(code);
     if (useCloud) {
-      Promise.resolve(window.MTG.setCard(CODE, id, cur)).catch(() => {});
+      Promise.resolve(window.MTG.setCard(code, id, cur)).catch(() => {});
     }
   }
 
@@ -172,6 +185,7 @@
       tcg: pu.tcgplayer || null,
       cm: pu.cardmarket || null,
       finishes: c.finishes || [],
+      set: c.set,
     };
   }
 
@@ -206,7 +220,50 @@
     return { meta: m, cards };
   }
 
-  // decide the ownership source and load it into `owned`
+  // Secret Lair drop: card list comes from secret-lair-data.js, card data from Scryfall
+  function loadScript(src) {
+    return new Promise((resolve, reject) => {
+      const s = document.createElement("script");
+      s.src = src;
+      s.onload = resolve;
+      s.onerror = () => reject(new Error("couldn’t load " + src));
+      document.head.appendChild(s);
+    });
+  }
+  async function findDrop() {
+    if (!window.SECRET_LAIR) await loadScript("secret-lair-data.js");
+    const d = (window.SECRET_LAIR.drops || []).find((x) => x.id === DROP_ID);
+    if (!d) return null;
+    d.cards.forEach(([id, set]) => (cardSet[id] = set || CODE));
+    SET_CODES = Array.from(new Set(d.cards.map(([, set]) => set || CODE)));
+    return d;
+  }
+  async function fetchDrop() {
+    const ids = DROP.cards.map(([id]) => id);
+    const byId = {};
+    for (let i = 0; i < ids.length; i += 75) {
+      const r = await fetch("https://api.scryfall.com/cards/collection", {
+        method: "POST",
+        headers: { Accept: "application/json", "Content-Type": "application/json" },
+        body: JSON.stringify({ identifiers: ids.slice(i, i + 75).map((id) => ({ id })) }),
+      });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      (await r.json()).data.forEach((c) => (byId[c.id] = trimCard(c)));
+      statusEl.textContent = "Loading cards… " + Object.keys(byId).length + " so far";
+      if (i + 75 < ids.length) await new Promise((r) => setTimeout(r, 120));
+    }
+    const kind = { commander: "Secret Lair Commander Deck", countdown: "Secret Lair Countdown Kit", ultimate: "Secret Lair: Ultimate Edition" };
+    const meta = {
+      code: "sld",
+      name: DROP.name,
+      released: DROP.released,
+      icon: "https://svgs.scryfall.io/sets/sld.svg",
+      label: (kind[DROP.kind] || "Secret Lair Drop") + (DROP.foil_edition ? " · Foil edition available" : ""),
+    };
+    return { meta, cards: ids.map((id) => byId[id]).filter(Boolean) };
+  }
+
+  // decide the ownership source and load it into `ownedBySet`
   async function hydrateOwned() {
     if (window.MTG) {
       window.MTG.mountAccountBar(document.getElementById("account"));
@@ -216,17 +273,28 @@
     if (useCloud) {
       try {
         await window.MTG.importLocalOnce();
-        owned = await window.MTG.loadSet(CODE);
-      } catch (e) {
-        owned = loadLocal(); // fall back to cache on network error
-      }
-    } else {
-      owned = loadLocal();
+        const maps = await Promise.all(SET_CODES.map((code) => window.MTG.loadSet(code)));
+        SET_CODES.forEach((code, i) => (ownedBySet[code] = maps[i]));
+        return;
+      } catch (e) {} // fall back to cache on network error
     }
+    SET_CODES.forEach((code) => (ownedBySet[code] = loadLocal(code)));
   }
 
   async function load() {
-    if (!CODE) {
+    if (DROP_ID) {
+      document.querySelector(".back-link").href = "index.html#secret-lair";
+      try {
+        DROP = await findDrop();
+      } catch (e) {
+        showError("Couldn’t load Secret Lair data.", e.message);
+        return;
+      }
+      if (!DROP) {
+        showError("Secret Lair drop not found.", "Go back to the Secret Lair list and pick a drop.");
+        return;
+      }
+    } else if (!CODE) {
       showError("No set specified.", "Go back to the set list and pick a set.");
       return;
     }
@@ -237,7 +305,7 @@
       return;
     }
     try {
-      const { meta, cards } = await fetchSet();
+      const { meta, cards } = await (DROP ? fetchDrop() : fetchSet());
       if (!cards.length) {
         showError("No cards found for “" + CODE + "”.", "This set may have no card data on Scryfall.");
         return;
@@ -271,7 +339,7 @@
     const dateStr = meta.released
       ? new Date(meta.released).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })
       : "";
-    document.getElementById("setSub").textContent = code + (dateStr ? " · " + dateStr : "");
+    document.getElementById("setSub").textContent = (meta.label || code) + (dateStr ? " · " + dateStr : "");
     document.title = name + " — Set Tracker";
     if (meta.icon) {
       const ic = document.getElementById("setIcon");
@@ -284,6 +352,7 @@
     recomputeTotal();
     render();
     mergeCardKingdomPrices();
+    if (FOCUS_CARD && CARDS.some((c) => c.id === FOCUS_CARD)) openLightbox(FOCUS_CARD);
   }
 
   function recomputeTotal() {
@@ -494,10 +563,24 @@
   });
 
   document.getElementById("resetBtn").addEventListener("click", () => {
-    if (!Object.keys(owned).length) return;
+    if (DROP) {
+      // only this drop's cards — the rest of the set (e.g. other sld cards) stays
+      const mine = CARDS.filter((c) => hasAny(c.id));
+      if (!mine.length) return;
+      if (!confirm("Clear the " + mine.length + " owned cards in this drop? This can't be undone.")) return;
+      mine.forEach((c) => {
+        const code = setOf(c.id);
+        delete ownedBySet[code][c.id];
+        if (useCloud) Promise.resolve(window.MTG.setCard(code, c.id, { n: false, f: false })).catch(() => {});
+      });
+      SET_CODES.forEach(saveLocal);
+      render();
+      return;
+    }
+    if (!Object.keys(ownedBySet[CODE] || {}).length) return;
     if (confirm("Clear your entire collection for this set? This can't be undone.")) {
-      owned = {};
-      saveLocal();
+      ownedBySet[CODE] = {};
+      saveLocal(CODE);
       if (useCloud) Promise.resolve(window.MTG.clearSet(CODE)).catch(() => {});
       render();
     }

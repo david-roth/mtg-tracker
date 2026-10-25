@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MTG Set Tracker</title>
-<link rel="stylesheet" href="styles.css?v=11">
+<link rel="stylesheet" href="styles.css?v=12">
 </head>
 <body>
 <header class="topbar">
@@ -26,17 +26,39 @@
 </header>
 
 <div class="controls">
+  <div class="controls-inner tabs-row">
+    <nav class="tabs" id="tabs" role="tablist">
+      <button class="tab active" role="tab" data-tab="sets">Sets</button>
+      <button class="tab" role="tab" data-tab="secret-lair">Secret Lair</button>
+    </nav>
+  </div>
   <div class="controls-inner">
-    <input type="search" id="search" placeholder="Search sets by name or code…" autocomplete="off">
-    <label class="sort-label">Type
+    <div class="search-combo">
+      <select id="searchMode" aria-label="Search for">
+        <option value="sets">Sets</option>
+        <option value="cards">Cards</option>
+        <option value="artist">Illustrator</option>
+      </select>
+      <input type="search" id="search" placeholder="Search sets by name or code…" autocomplete="off">
+    </div>
+    <label class="sort-label sets-only">Type
       <select id="typeFilter"></select>
     </label>
-    <div class="filter-group" id="startedFilters">
+    <label class="sort-label sl-only">Kind
+      <select id="slKind">
+        <option value="all">All drops &amp; decks</option>
+        <option value="drop">Drops</option>
+        <option value="commander">Commander decks</option>
+        <option value="countdown">Countdown kits</option>
+        <option value="ultimate">Ultimate Edition</option>
+      </select>
+    </label>
+    <div class="filter-group list-only" id="startedFilters">
       <button class="chip active" data-started="all">All sets</button>
       <button class="chip" data-started="started">Started</button>
     </div>
     <div class="spacer"></div>
-    <label class="sort-label">Sort
+    <label class="sort-label list-only">Sort
       <select id="sort">
         <option value="new">Release (new→old)</option>
         <option value="old">Release (old→new)</option>
@@ -55,10 +77,16 @@
 <main id="grid" class="sets-grid" aria-live="polite"></main>
 <div id="empty" class="empty-state" hidden>No sets match these filters.</div>
 
+<section id="cardResults" class="card-results" hidden aria-live="polite">
+  <div id="cardStatus" class="empty-state" hidden></div>
+  <div id="cardGrid" class="card-results-grid"></div>
+  <div class="more-row"><button class="ghost-btn" id="moreCards" hidden>Load more</button></div>
+</section>
+
 <script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="mtg.js?v=3"></script>
 <script src="sets-data.js?v=2"></script>
-<script src="sets-app.js?v=3"></script>
+<script src="sets-app.js?v=4"></script>
 </body>
 </html>

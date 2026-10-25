@@ -104,7 +104,7 @@ body{
 .chip.c-c.active{border-color:#9aa4b2;color:#cfd6df}
 .spacer{flex:1}
 .sort-label{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:6px}
-#sort{
+#sort,#slKind,#typeFilter{
   background:var(--panel);border:1px solid var(--line);color:var(--text);
   padding:7px 9px;border-radius:8px;font-size:13px;cursor:pointer;
 }
@@ -492,7 +492,58 @@ body{
 .set-card.started .mini-fill{background:linear-gradient(90deg,#4caf7d,#7fe0ab)}
 .mini-stats{display:flex;justify-content:space-between;font-size:11.5px;color:var(--muted);margin-top:5px}
 
+/* ---- index tabs & search modes ---- */
+.controls-inner.tabs-row{padding-bottom:0}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);flex:1}
+.tab{
+  background:none;border:0;border-bottom:2px solid transparent;margin-bottom:-1px;
+  color:var(--muted);padding:8px 14px;font-size:14px;font-weight:600;cursor:pointer;
+}
+.tab:hover{color:var(--text)}
+.tab.active{color:var(--gold-bright);border-bottom-color:var(--gold)}
+.search-combo{display:flex;flex:1;min-width:220px;max-width:460px}
+.search-combo #search{max-width:none;border-top-left-radius:0;border-bottom-left-radius:0}
+#searchMode{
+  background:var(--panel-2);border:1px solid var(--line);border-right:0;color:var(--text);
+  padding:0 8px;border-radius:8px 0 0 8px;font-size:13px;
+}
+body:not(.tab-sl) .sl-only{display:none}
+body.tab-sl .sets-only,body.tab-sl #searchMode{display:none}
+body.tab-sl .search-combo #search{border-radius:8px}
+body.card-search .sets-only,body.card-search .list-only{display:none}
+
+/* ---- card / illustrator search results ---- */
+.card-results{max-width:1400px;margin:0 auto;padding:22px}
+.card-results-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:14px}
+.result-card{
+  display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);
+  border-radius:var(--radius);overflow:hidden;text-decoration:none;color:var(--text);
+  transition:transform .13s ease,border-color .13s ease;
+}
+.result-card:hover{transform:translateY(-3px);border-color:var(--gold)}
+.rc-img{width:100%;aspect-ratio:488/680;object-fit:cover;background:#0b0d12;display:block}
+.rc-info{padding:8px 10px 10px;display:flex;flex-direction:column;gap:3px;min-width:0}
+.rc-name{font-size:13.5px;font-weight:600;color:var(--gold-bright);line-height:1.25}
+.rc-set{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--text);min-width:0}
+.rc-set img{
+  width:15px;height:15px;object-fit:contain;flex:none;
+  filter:invert(78%) sepia(38%) saturate(500%) hue-rotate(2deg) brightness(95%);
+}
+.rc-set span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rc-artist{font-size:11px;color:var(--muted)}
+.more-row{display:flex;justify-content:center;padding:20px 0 6px}
+
+/* ---- Secret Lair drop cards ---- */
+.drop-card{gap:8px;padding:0 0 14px;overflow:hidden}
+.drop-card > :not(.drop-art){margin-left:14px;margin-right:14px}
+.drop-art{width:100%;aspect-ratio:626/457;object-fit:cover;display:block;background:#0b0d12;margin-bottom:4px}
+.foil-tag{color:var(--gold)}
+.drop-hit{font-size:11.5px;color:var(--green)}
+
 @media (max-width:640px){
+  .card-results{padding:14px}
+  .card-results-grid{grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:11px}
+  .search-combo{max-width:none}
   .grid{grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:11px;padding:14px}
   .sets-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:11px;padding:14px}
   .topbar-inner{padding:12px 16px}
